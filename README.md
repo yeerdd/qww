@@ -20,4 +20,9 @@ The scanner writes `data/repos.js`, which is loaded by the dashboard without a d
 - Language and file-type breakdowns
 - Entry-point hints such as `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, and README files
 - TODO/FIXME notes from source files
-- Search, language filters, and status filters
+- Search, language filters, status filters, and sorting
+- Quick filters for all repos, focus, favorites, in-progress work, and blocked items
+- Stack signals such as package manager, lockfiles, automation, and test targets
+- Copy-ready paths, commands, README previews, and file trees from the detail drawer
+- Personal workspace state stored in the browser: favorites, workflow status, and notes
+- Built-in English / Chinese language toggle stored in the browser

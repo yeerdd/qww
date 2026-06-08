@@ -7,66 +7,143 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
     <main class="shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">Workspace</p>
-          <h1>Code Repository Navigator</h1>
+        <div class="hero-copy">
+          <p class="eyebrow" data-i18n="hero.eyebrow">Workspace Radar</p>
+          <h1 data-i18n="hero.title">Code Repository Navigator</h1>
+          <p class="lede" data-i18n="hero.lede">
+            A fast local radar for repo health, entry points, commands, and next actions across this workspace.
+          </p>
+          <div class="hero-actions">
+            <button id="copyWorkspace" class="action-button" type="button" data-i18n="hero.copyWorkspace">Copy workspace path</button>
+            <button id="copyRefresh" class="action-button subtle" type="button" data-i18n="hero.copyRefresh">Copy refresh command</button>
+            <a id="openScanner" class="action-button subtle" href="#" target="_blank" rel="noreferrer" data-i18n="hero.openScanner">Open scan script</a>
+            <label class="language-switch">
+              <span data-i18n="hero.language">Language</span>
+              <select id="languageToggle">
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div class="summary" aria-label="Workspace summary">
           <div>
             <strong id="repoCount">0</strong>
-            <span>Repos</span>
+            <span data-i18n="summary.repos">Repos</span>
           </div>
           <div>
             <strong id="dirtyCount">0</strong>
-            <span>Dirty</span>
+            <span data-i18n="summary.dirty">Dirty</span>
           </div>
           <div>
             <strong id="todoCount">0</strong>
-            <span>Notes</span>
+            <span data-i18n="summary.notes">Notes</span>
+          </div>
+          <div>
+            <strong id="commandCount">0</strong>
+            <span data-i18n="summary.commands">Commands</span>
           </div>
         </div>
       </header>
 
+      <section class="workspace-strip panel">
+        <div>
+          <p class="section-kicker" data-i18n="workspace.path">Workspace path</p>
+          <strong id="workspacePath">Unknown</strong>
+        </div>
+        <div>
+          <p class="section-kicker" data-i18n="workspace.topStack">Top stack</p>
+          <strong id="topLanguage">Unknown</strong>
+        </div>
+        <div>
+          <p class="section-kicker" data-i18n="workspace.scanStatus">Scan status</p>
+          <strong id="scanTime">Not scanned</strong>
+        </div>
+      </section>
+
       <section class="controls" aria-label="Filters">
         <label class="search">
-          <span>Search repositories</span>
-          <input id="searchInput" type="search" placeholder="Name, path, language, branch...">
+          <span data-i18n="filters.search">Search repositories</span>
+          <input id="searchInput" type="search" placeholder="Name, path, language, branch..." data-i18n-placeholder="filters.searchPlaceholder">
         </label>
         <label>
-          <span>Language</span>
+          <span data-i18n="filters.language">Language</span>
           <select id="languageFilter">
-            <option value="all">All languages</option>
+            <option value="all" data-i18n="filters.allLanguages">All languages</option>
           </select>
         </label>
         <label>
-          <span>Status</span>
+          <span data-i18n="filters.status">Status</span>
           <select id="statusFilter">
-            <option value="all">All statuses</option>
-            <option value="dirty">Dirty only</option>
-            <option value="clean">Clean only</option>
+            <option value="all" data-i18n="filters.allStatuses">All statuses</option>
+            <option value="dirty" data-i18n="filters.dirtyOnly">Dirty only</option>
+            <option value="clean" data-i18n="filters.cleanOnly">Clean only</option>
           </select>
         </label>
+        <label>
+          <span data-i18n="filters.sort">Sort</span>
+          <select id="sortFilter">
+            <option value="recent" data-i18n="filters.sortRecent">Recently updated</option>
+            <option value="notes" data-i18n="filters.sortNotes">Most notes</option>
+            <option value="commands" data-i18n="filters.sortCommands">Most commands</option>
+            <option value="name" data-i18n="filters.sortName">Name</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="panel quick-filter-panel">
+        <div class="panel-head">
+          <div>
+            <h2 data-i18n="quickFilters.title">Quick Filters</h2>
+            <p class="meta" data-i18n="quickFilters.meta">Jump straight to the repos that matter most right now.</p>
+          </div>
+          <span id="quickFilterSummary">All repos</span>
+        </div>
+        <div class="quick-filter-row">
+          <button class="quick-filter-chip active-chip" type="button" data-focus-filter="all" data-i18n="quickFilters.all">All repos</button>
+          <button class="quick-filter-chip" type="button" data-focus-filter="focus" data-i18n="quickFilters.focus">My focus</button>
+          <button class="quick-filter-chip" type="button" data-focus-filter="favorites" data-i18n="quickFilters.favorites">Favorites</button>
+          <button class="quick-filter-chip" type="button" data-focus-filter="in_progress" data-i18n="quickFilters.inProgress">In progress</button>
+          <button class="quick-filter-chip" type="button" data-focus-filter="blocked" data-i18n="quickFilters.blocked">Blocked</button>
+        </div>
+      </section>
+
+      <section class="panel focus-panel">
+        <div class="panel-head">
+          <div>
+            <h2 data-i18n="focus.title">My Focus</h2>
+            <p class="meta" data-i18n="focus.meta">Favorites, active work, blockers, and repos with personal notes.</p>
+          </div>
+          <span id="focusCount">0 in focus</span>
+        </div>
+        <div id="focusGrid" class="focus-grid"></div>
+        <div id="focusEmpty" class="empty-state" hidden>
+          <span data-i18n="focus.empty">Mark a repo as favorite, in progress, blocked, or add a note to see it here.</span>
+        </div>
       </section>
 
       <section class="dashboard">
         <aside class="panel">
           <div class="panel-head">
-            <h2>Language Mix</h2>
-            <span id="scanTime">Not scanned</span>
+            <h2 data-i18n="dashboard.languageMix">Language Mix</h2>
+            <span id="languageCount">0 languages</span>
           </div>
           <div id="languageMix" class="bars"></div>
         </aside>
 
         <section class="panel repo-panel">
           <div class="panel-head">
-            <h2>Repositories</h2>
+            <h2 data-i18n="dashboard.repositories">Repositories</h2>
             <span id="resultCount">0 shown</span>
           </div>
+          <div id="activeFilters" class="active-filters"></div>
           <div id="repoGrid" class="repo-grid"></div>
           <div id="emptyState" class="empty-state" hidden>
-            No repositories match the current filters.
+            <span data-i18n="dashboard.empty">No repositories match the current filters.</span>
           </div>
         </section>
       </section>
@@ -74,9 +151,10 @@
 
     <div id="detailOverlay" class="detail-overlay" hidden></div>
     <aside id="detailDrawer" class="detail-drawer" aria-labelledby="detailTitle" aria-hidden="true">
-      <button id="closeDetail" class="icon-button" type="button" aria-label="Close repository details">x</button>
+      <button id="closeDetail" class="icon-button" type="button" aria-label="Close repository details" data-i18n="detail.close">Close</button>
       <div id="detailContent"></div>
     </aside>
+    <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
 
     <script src="data/repos.js"></script>
     <script src="app.js"></script>
