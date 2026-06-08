@@ -1,9 +1,11 @@
 (function () {
   const refreshCommand = "powershell -ExecutionPolicy Bypass -File .\\scripts\\scan-workspace.ps1";
+  const syncStateCommand = "powershell -ExecutionPolicy Bypass -File .\\scripts\\sync-personal-state.ps1";
   const workspacePath = "C:\\Users\\Fox-OS\\Desktop\\git";
   const scanScriptPath = `${workspacePath}\\scripts\\scan-workspace.ps1`;
   const personalStateKey = "repoNavigator.personalState.v1";
   const languageStateKey = "repoNavigator.language.v1";
+  const validPersonalStatuses = new Set(["later", "in_progress", "blocked"]);
   const translations = {
     en: {
       "hero.eyebrow": "Workspace Radar",
@@ -11,7 +13,10 @@
       "hero.lede": "A fast local radar for repo health, entry points, commands, and next actions across this workspace.",
       "hero.copyWorkspace": "Copy workspace path",
       "hero.copyRefresh": "Copy refresh command",
+      "hero.copyStateSync": "Copy state sync command",
       "hero.openScanner": "Open scan script",
+      "hero.exportState": "Export state file",
+      "hero.importState": "Import state file",
       "hero.language": "Language",
       "summary.repos": "Repos",
       "summary.dirty": "Dirty",
@@ -149,7 +154,10 @@
       "toast.favoriteOn": "Marked as favorite",
       "toast.favoriteOff": "Removed from favorites",
       "toast.statusSaved": "Status saved: {value}",
-      "toast.saveFailed": "Could not save personal state"
+      "toast.saveFailed": "Could not save personal state",
+      "toast.stateExported": "State file exported",
+      "toast.stateImported": "State file imported",
+      "toast.stateImportFailed": "Could not import state file"
     },
     zh: {
       "hero.eyebrow": "工作区雷达",
@@ -157,7 +165,10 @@
       "hero.lede": "一个快速的本地工作台，用来查看仓库健康度、入口文件、常用命令和下一步动作。",
       "hero.copyWorkspace": "复制工作区路径",
       "hero.copyRefresh": "复制刷新命令",
+      "hero.copyStateSync": "复制状态同步命令",
       "hero.openScanner": "打开扫描脚本",
+      "hero.exportState": "导出状态文件",
+      "hero.importState": "导入状态文件",
       "hero.language": "语言",
       "summary.repos": "仓库数",
       "summary.dirty": "未清理",
@@ -295,7 +306,10 @@
       "toast.favoriteOn": "已标记为收藏",
       "toast.favoriteOff": "已取消收藏",
       "toast.statusSaved": "状态已保存：{value}",
-      "toast.saveFailed": "保存个人状态失败"
+      "toast.saveFailed": "保存个人状态失败",
+      "toast.stateExported": "状态文件已导出",
+      "toast.stateImported": "状态文件已导入",
+      "toast.stateImportFailed": "导入状态文件失败"
     }
   };
   const fallbackData = {
@@ -398,7 +412,10 @@
     toast: document.getElementById("toast"),
     copyWorkspace: document.getElementById("copyWorkspace"),
     copyRefresh: document.getElementById("copyRefresh"),
+    copyStateSync: document.getElementById("copyStateSync"),
     openScanner: document.getElementById("openScanner"),
+    exportState: document.getElementById("exportState"),
+    importState: document.getElementById("importState"),
     languageToggle: document.getElementById("languageToggle")
   };
 
@@ -439,12 +456,20 @@
   }
 
   function loadPersonalState() {
+    const fileState = normalizePersonalStateMap(window.REPO_NAV_PERSONAL_STATE);
+    let browserState = {};
+
     try {
       const raw = window.localStorage.getItem(personalStateKey);
-      return raw ? JSON.parse(raw) : {};
+      browserState = raw ? normalizePersonalStateMap(JSON.parse(raw)) : {};
     } catch (error) {
-      return {};
+      browserState = {};
     }
+
+    return {
+      ...fileState,
+      ...browserState
+    };
   }
 
   function savePersonalState() {
@@ -453,6 +478,89 @@
     } catch (error) {
       showToast(t("toast.saveFailed"));
     }
+  }
+
+  function serializePersonalState() {
+    return {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      repositories: personalState
+    };
+  }
+
+  function normalizePersonalStateMap(payload) {
+    if (!payload || typeof payload !== "object") return {};
+    const source = payload.repositories && typeof payload.repositories === "object" ? payload.repositories : payload;
+    const normalized = {};
+
+    for (const [key, value] of Object.entries(source)) {
+      if (!key || !value || typeof value !== "object") continue;
+      normalized[key] = normalizePersonalEntry(value);
+    }
+
+    return normalized;
+  }
+
+  function normalizePersonalEntry(value) {
+    const entry = value && typeof value === "object" ? value : {};
+    return {
+      favorite: Boolean(entry.favorite),
+      workflowStatus: validPersonalStatuses.has(entry.workflowStatus) ? entry.workflowStatus : "later",
+      note: typeof entry.note === "string" ? entry.note : ""
+    };
+  }
+
+  function mergeImportedPersonalState(payload) {
+    if (!payload || typeof payload !== "object" || !payload.repositories || typeof payload.repositories !== "object") {
+      throw new Error("Invalid state payload");
+    }
+
+    for (const [key, value] of Object.entries(normalizePersonalStateMap(payload))) {
+      personalState[key] = value;
+    }
+
+    for (const repo of repositories) {
+      const key = personalKey(repo);
+      repo.personal = normalizePersonalEntry(personalState[key]);
+    }
+
+    savePersonalState();
+  }
+
+  function exportPersonalStateFile() {
+    const blob = new Blob([JSON.stringify(serializePersonalState(), null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "personal-state.json";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast(t("toast.stateExported"));
+  }
+
+  function importPersonalStateFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || "{}"));
+        mergeImportedPersonalState(parsed);
+        render();
+        if (state.selectedPath) {
+          const repo = reposByPath.get(state.selectedPath);
+          if (repo) renderDetail(repo);
+        }
+        showToast(t("toast.stateImported"));
+      } catch (error) {
+        showToast(t("toast.stateImportFailed"));
+      }
+    };
+    reader.onerror = () => {
+      showToast(t("toast.stateImportFailed"));
+    };
+    reader.readAsText(file);
   }
 
   function personalKey(repo) {
@@ -464,7 +572,7 @@
     const commandCount = (repo.commands || []).length;
     const entryPointCount = (repo.entryPoints || []).length;
     const fileCount = (repo.fileTree || []).length;
-    const personal = savedState[personalKey(repo)] || {};
+    const personal = normalizePersonalEntry(savedState[personalKey(repo)]);
     return {
       ...repo,
       commands: (repo.commands || []).map((command) => ({
@@ -494,20 +602,16 @@
         behind: (repo.git && repo.git.behind) || 0
       },
       readme: repo.readme || null,
-      personal: {
-        favorite: Boolean(personal.favorite),
-        workflowStatus: personal.workflowStatus || "later",
-        note: personal.note || ""
-      }
+      personal
     };
   }
 
   function updatePersonalState(repo, patch) {
     const key = personalKey(repo);
-    const next = {
+    const next = normalizePersonalEntry({
       ...repo.personal,
       ...patch
-    };
+    });
     repo.personal = next;
     personalState[key] = next;
     savePersonalState();
@@ -1133,6 +1237,12 @@
 
   els.copyWorkspace.addEventListener("click", () => copyText(data.workspace || fallbackData.workspace, t("hero.copyWorkspace")));
   els.copyRefresh.addEventListener("click", () => copyText(refreshCommand, t("hero.copyRefresh")));
+  els.copyStateSync.addEventListener("click", () => copyText(syncStateCommand, t("hero.copyStateSync")));
+  els.exportState.addEventListener("click", exportPersonalStateFile);
+  els.importState.addEventListener("change", (event) => {
+    importPersonalStateFile(event.target.files && event.target.files[0]);
+    event.target.value = "";
+  });
   els.languageToggle.addEventListener("change", (event) => {
     currentLanguage = event.target.value === "zh" ? "zh" : "en";
     saveLanguage(currentLanguage);

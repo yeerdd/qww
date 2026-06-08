@@ -20,7 +20,13 @@
           <div class="hero-actions">
             <button id="copyWorkspace" class="action-button" type="button" data-i18n="hero.copyWorkspace">Copy workspace path</button>
             <button id="copyRefresh" class="action-button subtle" type="button" data-i18n="hero.copyRefresh">Copy refresh command</button>
+            <button id="copyStateSync" class="action-button subtle" type="button" data-i18n="hero.copyStateSync">Copy state sync command</button>
             <a id="openScanner" class="action-button subtle" href="#" target="_blank" rel="noreferrer" data-i18n="hero.openScanner">Open scan script</a>
+            <button id="exportState" class="action-button subtle" type="button" data-i18n="hero.exportState">Export state file</button>
+            <label class="import-state action-button subtle">
+              <span data-i18n="hero.importState">Import state file</span>
+              <input id="importState" type="file" accept=".json,application/json" hidden>
+            </label>
             <label class="language-switch">
               <span data-i18n="hero.language">Language</span>
               <select id="languageToggle">
@@ -157,6 +163,7 @@
     <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
 
     <script src="data/repos.js"></script>
+    <script src="data/personal-state.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -228,6 +228,11 @@ h2 {
   transform: translateY(-1px);
 }
 
+.import-state {
+  position: relative;
+  overflow: hidden;
+}
+
 .action-button:hover {
   box-shadow: 0 14px 24px rgba(15, 118, 110, 0.2);
 }
